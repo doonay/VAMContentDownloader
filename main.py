@@ -74,3 +74,6 @@ print(logic.get_categories_dict(logic.get_soup(logic.url)))
 #перевести логическую часть в логику
 #создать часть для работы с БД
 #в основном файле оставить основную часть
+
+if __name__ == '__main__':
+    pass
