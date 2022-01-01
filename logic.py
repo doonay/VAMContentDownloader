@@ -28,6 +28,11 @@ from db import Database
 import download
 from time import sleep
 import lxml
+from tqdm import tqdm
+import time
+from progress.bar import IncrementalBar
+from alive_progress import alive_bar
+from alive_progress import alive_it
 
 session = requests.Session()
 headers = {'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:95.0) Gecko/20100101 Firefox/95.0'}
@@ -79,65 +84,74 @@ class Logic():
 
 		return pagination_list
 
+
+
+
 	#print(get_pagination_list('https://hub.virtamate.com/resources/categories/plugins.12/'))
 
 	#дербаним отрезок на карточки, возвращаем массив
 	#<div class="structItem structItem--resource is-prefix2  js-inlineModContainer js-resourceListItem-13253" data-author="misterx">
-	def get_cards(self, piece_of_cake):
-		#piece_of_cake = 'https://hub.virtamate.com/resources/categories/scenes.3/?page=1'
-		#r = self.session.get(piece_of_cake, headers=self.headers, cookies=self.cookies)
-		#soup = bs(r.content, 'lxml')
-		soup = self.get_soup(piece_of_cake)
-		#print(soup)
+	def get_cards(self, page):
+		soup = self.get_soup(page)
 		cards = soup.find_all('div', class_="structItem")
-		final_card = {}
+		cards_list = []
 
-		for card in cards:
+
+		for card in tqdm(cards):
+			final_card = {}
 			try:
 				#type of content
-				final_card['type of content'] = card.find('span', {'class': "label label--silver", 'dir': "auto"}).text
+				type_of_content = card.find('span', {'class': "label label--silver", 'dir': "auto"}).text
+				final_card['type of content'] = type_of_content
 			except AttributeError:
-				final_card['type of content'] = 'Other'
+				type_of_content = 'Other'
+				final_card['type of content'] = type_of_content
+
+			#print(type_of_content)
 
 			# img link
 			img_link = card.find('img').get('src')
 			if img_link.find('https://') == 0:
 				x = img_link.rfind('?')
-				final_card['img link'] = img_link[:x]
+				img_link = img_link[:x]
+				final_card['img link'] = img_link
 			else:
-				final_card['img link'] = 'https://hub.virtamate.com/logos/vam_logo_hub_trans_400x80.png'
+				img_link = 'https://hub.virtamate.com/logos/vam_logo_hub_trans_400x80.png'
+				final_card['img link'] = img_link
+
+			#print(img_link)
 
 			#url of content
-			url_of_content = self.base_url + card.find('a', {'class': ""}).get('href')
-			final_card['url of content'] = url_of_content[0:-1]
+			url_of_content = self.base_url + card.find('a', {'class': ""}).get('href')[0:-1]
+			final_card['url of content'] = url_of_content
 
+			#print('url_of_content',url_of_content)
 
 			#download links
-			#Усовершенствовал механизм получения ссылок. !!!В связи с этим в карточку добавился новый эллемент - ссылка на файл зависимостей
-			id = self.get_soup(url_of_content[0:-1])
-			# <a href="/resources/the-clinic.12377/download" class="button--cta button button--icon button--icon--download" data-xf-click="overlay"><span class="button-text">Download</span></a>
-			general_download_page = id.find('a', {'class': 'button--cta', 'data-xf-click': 'overlay'})
-			# <a class ="button--cta button button--icon button--icon--download" data-xf-click="overlay" href="/resources/chinese-dragon-bridge.13191/download"><span class ="button-text">Download</span></a>
-			'''
+			download_page = self.get_soup(url_of_content)
+			general_download_page = download_page.find('a', {'class': 'button--cta', 'data-xf-click': 'overlay'})
+			#print('general_download_page',general_download_page)
+			final_links_arr = []
+
 			if general_download_page == None:
-				print('без зависимости')
-				download_page = id.find('a', {'class': 'button--cta'}).get('href')
+				download_page = download_page.find('a', {'class': 'button--cta'}).get('href')
 				final_card['download content link'] = self.base_url + download_page
-				final_card['download depensies link'] = None
+				final_card['download dependencies link'] = None
+				#print('download content link', self.base_url + download_page)
+				#print('download dependencies link', None)
 			else:
-				#супировать страницу закачки и парсить отдельную ссылку на файл зависимости
-				print('есть зависимости')
 				download_page = self.base_url + str(general_download_page.get('href'))
 				download_page_soup = self.get_soup(download_page)
-				# <a href="/resources/poseable-anal-beads.13070/version/16551/download?file=82253" class="button button--icon button--icon--download"><span class="button-text">Download</span></a>
-				# <a href="/resources/poseable-anal-beads.13070/version/16551/download?file=82254" class="button button--icon button--icon--download"><span class="button-text">Download</span></a>
 				links_arr = download_page_soup.find_all('a', class_='button')
 				for link in links_arr:
 					#print(str(link.get('href')).find('/resources/'))
 					if str(link.get('href')).find('/resources/') == 0:
-						print(self.base_url + str(link.get('href')))
-				#final_card['download content link'] = self.base_url + download_page
-				#final_card['download depensies link'] = None
+						final_links_arr.append(str(link.get('href')))
+				final_card['download content link'] = self.base_url + final_links_arr[0]
+				final_card['download dependencies link'] = self.base_url + final_links_arr[1]
+				#print('download content link', self.base_url + final_links_arr[0])
+				#print('download dependencies link', self.base_url + final_links_arr[1])
+
 			'''
 
 			try:
@@ -150,32 +164,23 @@ class Logic():
 						final_links_arr.append(str(link.get('href')))
 
 				final_card['download content link'] = self.base_url + final_links_arr[0]
-				final_card['download depensies link'] = self.base_url + final_links_arr[1]
+				final_card['download dependencies link'] = self.base_url + final_links_arr[1]
 			except:
-				print('без зависимости')
 				download_page = id.find('a', {'class': 'button--cta'}).get('href')
 				final_card['download content link'] = self.base_url + download_page
-				final_card['download depensies link'] = None
-
-			print(final_card.get('download content link'))
-			print(final_card.get('download depensies link'))
-
-
-				#print('кортеж из двух ссылок (контент и файл зависимости):', download_page.find_all('a', class_='button'))
-			#general_download_page_soup = self.get_soup(general_download_page)
-
-			#!!!Устарело!!! т.к. добавил более четкую ссылку на скачивание + если есть файл зависимости, скачиваем и его
-			#download link
-			#print('download link:', base_url + get_download_link(url_of_content))
-			#final_card['download link'] = url_of_content + 'download'
-
-			#name
+				final_card['download dependencies link'] = None
+			'''
 			final_card['name'] = card.find('a', {'class': ""}).text
+			#print('name', card.find('a', {'class': ""}).text)
 
 			#about
 			final_card['about'] = card.find('div', class_="structItem-resourceTagLine").text
+			#print('about', card.find('div', class_="structItem-resourceTagLine").text)
 
-		return final_card
+			cards_list.append(final_card)
+			tqdm()
+		#print('cards_list', cards_list)
+		return cards_list
 	#print(get_cards('https://hub.virtamate.com/resources/categories/plugins.12/?page=1'))
 
 
@@ -222,51 +227,78 @@ if __name__ == '__main__':
 
 	soup = logic.get_soup(logic.url)
 
-	categories = logic.get_categories(soup)
-	print('метод: get_categories, тип:', type(categories), categories)
+	#categories = logic.get_categories(soup)
+	#print('метод: get_categories, тип:', type(categories), categories)
 
-	print('метод: get_pagination_number, тип:', type(logic.get_pagination_number(soup)), logic.get_pagination_number(soup))
+	#print('метод: get_pagination_number, тип:', type(logic.get_pagination_number(soup)), logic.get_pagination_number(soup))
 
 	categories_dict = logic.get_categories_dict(soup)
-	print('метод: get_categories_dict, тип:', type(categories_dict), categories_dict)
-	#categories_dict = {'Scenes': 'https://hub.virtamate.com/resources/categories/scenes.3/', 'Looks': 'https://hub.virtamate.com/resources/categories/looks.7/', 'Clothing': 'https://hub.virtamate.com/resources/categories/clothing.8/', 'Hairstyles': 'https://hub.virtamate.com/resources/categories/hairstyles.9/', 'Morphs': 'https://hub.virtamate.com/resources/categories/morphs.10/', 'Textures': 'https://hub.virtamate.com/resources/categories/textures.11/', 'Plugins': 'https://hub.virtamate.com/resources/categories/plugins.12/', 'Assets': 'https://hub.virtamate.com/resources/categories/assets.2/', 'Guides': 'https://hub.virtamate.com/resources/categories/guides.13/', 'Other': 'https://hub.virtamate.com/resources/categories/other.32/'}
-
+	#print('метод: get_categories_dict, тип:', type(categories_dict), categories_dict)
 
 	#для тестов берем только одну категорию, любую
-	print('метод: get_pagination_links (на примере одной категории), тип:', type(logic.get_pagination_links(categories_dict.get(categories[7]))), logic.get_pagination_links(categories_dict.get(categories[7]))) #список кусков-страниц одной категории
-	#pieces_of_cake = ['https://hub.virtamate.com/resources/categories/scenes.3/?page=1', 'https://hub.virtamate.com/resources/categories/scenes.3/?page=2', 'https://hub.virtamate.com/resources/categories/scenes.3/?page=3', 'https://hub.virtamate.com/resources/categories/scenes.3/?page=4', 'https://hub.virtamate.com/resources/categories/scenes.3/?page=5', 'https://hub.virtamate.com/resources/categories/scenes.3/?page=6', 'https://hub.virtamate.com/resources/categories/scenes.3/?page=7', 'https://hub.virtamate.com/resources/categories/scenes.3/?page=8', 'https://hub.virtamate.com/resources/categories/scenes.3/?page=9', 'https://hub.virtamate.com/resources/categories/scenes.3/?page=10', 'https://hub.virtamate.com/resources/categories/scenes.3/?page=11', 'https://hub.virtamate.com/resources/categories/scenes.3/?page=12', 'https://hub.virtamate.com/resources/categories/scenes.3/?page=13', 'https://hub.virtamate.com/resources/categories/scenes.3/?page=14', 'https://hub.virtamate.com/resources/categories/scenes.3/?page=15', 'https://hub.virtamate.com/resources/categories/scenes.3/?page=16', 'https://hub.virtamate.com/resources/categories/scenes.3/?page=17', 'https://hub.virtamate.com/resources/categories/scenes.3/?page=18', 'https://hub.virtamate.com/resources/categories/scenes.3/?page=19', 'https://hub.virtamate.com/resources/categories/scenes.3/?page=20', 'https://hub.virtamate.com/resources/categories/scenes.3/?page=21', 'https://hub.virtamate.com/resources/categories/scenes.3/?page=22', 'https://hub.virtamate.com/resources/categories/scenes.3/?page=23', 'https://hub.virtamate.com/resources/categories/scenes.3/?page=24', 'https://hub.virtamate.com/resources/categories/scenes.3/?page=25', 'https://hub.virtamate.com/resources/categories/scenes.3/?page=26', 'https://hub.virtamate.com/resources/categories/scenes.3/?page=27', 'https://hub.virtamate.com/resources/categories/scenes.3/?page=28', 'https://hub.virtamate.com/resources/categories/scenes.3/?page=29', 'https://hub.virtamate.com/resources/categories/scenes.3/?page=30', 'https://hub.virtamate.com/resources/categories/scenes.3/?page=31', 'https://hub.virtamate.com/resources/categories/scenes.3/?page=32', 'https://hub.virtamate.com/resources/categories/scenes.3/?page=33', 'https://hub.virtamate.com/resources/categories/scenes.3/?page=34', 'https://hub.virtamate.com/resources/categories/scenes.3/?page=35', 'https://hub.virtamate.com/resources/categories/scenes.3/?page=36', 'https://hub.virtamate.com/resources/categories/scenes.3/?page=37', 'https://hub.virtamate.com/resources/categories/scenes.3/?page=38', 'https://hub.virtamate.com/resources/categories/scenes.3/?page=39', 'https://hub.virtamate.com/resources/categories/scenes.3/?page=40', 'https://hub.virtamate.com/resources/categories/scenes.3/?page=41', 'https://hub.virtamate.com/resources/categories/scenes.3/?page=42', 'https://hub.virtamate.com/resources/categories/scenes.3/?page=43', 'https://hub.virtamate.com/resources/categories/scenes.3/?page=44', 'https://hub.virtamate.com/resources/categories/scenes.3/?page=45', 'https://hub.virtamate.com/resources/categories/scenes.3/?page=46', 'https://hub.virtamate.com/resources/categories/scenes.3/?page=47', 'https://hub.virtamate.com/resources/categories/scenes.3/?page=48', 'https://hub.virtamate.com/resources/categories/scenes.3/?page=49', 'https://hub.virtamate.com/resources/categories/scenes.3/?page=50', 'https://hub.virtamate.com/resources/categories/scenes.3/?page=51', 'https://hub.virtamate.com/resources/categories/scenes.3/?page=52', 'https://hub.virtamate.com/resources/categories/scenes.3/?page=53', 'https://hub.virtamate.com/resources/categories/scenes.3/?page=54', 'https://hub.virtamate.com/resources/categories/scenes.3/?page=55', 'https://hub.virtamate.com/resources/categories/scenes.3/?page=56', 'https://hub.virtamate.com/resources/categories/scenes.3/?page=57']
-	pieces_of_cake = ['https://hub.virtamate.com/resources/categories/assets.2?page=1', 'https://hub.virtamate.com/resources/categories/assets.2?page=2', 'https://hub.virtamate.com/resources/categories/assets.2?page=3', 'https://hub.virtamate.com/resources/categories/assets.2?page=4', 'https://hub.virtamate.com/resources/categories/assets.2?page=5', 'https://hub.virtamate.com/resources/categories/assets.2?page=6', 'https://hub.virtamate.com/resources/categories/assets.2?page=7', 'https://hub.virtamate.com/resources/categories/assets.2?page=8', 'https://hub.virtamate.com/resources/categories/assets.2?page=9', 'https://hub.virtamate.com/resources/categories/assets.2?page=10', 'https://hub.virtamate.com/resources/categories/assets.2?page=11', 'https://hub.virtamate.com/resources/categories/assets.2?page=12', 'https://hub.virtamate.com/resources/categories/assets.2?page=13', 'https://hub.virtamate.com/resources/categories/assets.2?page=14', 'https://hub.virtamate.com/resources/categories/assets.2?page=15', 'https://hub.virtamate.com/resources/categories/assets.2?page=16', 'https://hub.virtamate.com/resources/categories/assets.2?page=17', 'https://hub.virtamate.com/resources/categories/assets.2?page=18', 'https://hub.virtamate.com/resources/categories/assets.2?page=19', 'https://hub.virtamate.com/resources/categories/assets.2?page=20', 'https://hub.virtamate.com/resources/categories/assets.2?page=21', 'https://hub.virtamate.com/resources/categories/assets.2?page=22', 'https://hub.virtamate.com/resources/categories/assets.2?page=23', 'https://hub.virtamate.com/resources/categories/assets.2?page=24', 'https://hub.virtamate.com/resources/categories/assets.2?page=25', 'https://hub.virtamate.com/resources/categories/assets.2?page=26', 'https://hub.virtamate.com/resources/categories/assets.2?page=27']
+	#print('метод: get_pagination_links (на примере одной категории), тип:', type(logic.get_pagination_links(categories_dict.get(categories[7]))), logic.get_pagination_links(categories_dict.get(categories[7]))) #список кусков-страниц одной категории
+	#pages = ['https://hub.virtamate.com/resources/categories/assets.2?page=1', 'https://hub.virtamate.com/resources/categories/assets.2?page=2', 'https://hub.virtamate.com/resources/categories/assets.2?page=3', 'https://hub.virtamate.com/resources/categories/assets.2?page=4', 'https://hub.virtamate.com/resources/categories/assets.2?page=5', 'https://hub.virtamate.com/resources/categories/assets.2?page=6', 'https://hub.virtamate.com/resources/categories/assets.2?page=7', 'https://hub.virtamate.com/resources/categories/assets.2?page=8', 'https://hub.virtamate.com/resources/categories/assets.2?page=9', 'https://hub.virtamate.com/resources/categories/assets.2?page=10', 'https://hub.virtamate.com/resources/categories/assets.2?page=11', 'https://hub.virtamate.com/resources/categories/assets.2?page=12', 'https://hub.virtamate.com/resources/categories/assets.2?page=13', 'https://hub.virtamate.com/resources/categories/assets.2?page=14', 'https://hub.virtamate.com/resources/categories/assets.2?page=15', 'https://hub.virtamate.com/resources/categories/assets.2?page=16', 'https://hub.virtamate.com/resources/categories/assets.2?page=17', 'https://hub.virtamate.com/resources/categories/assets.2?page=18', 'https://hub.virtamate.com/resources/categories/assets.2?page=19', 'https://hub.virtamate.com/resources/categories/assets.2?page=20', 'https://hub.virtamate.com/resources/categories/assets.2?page=21', 'https://hub.virtamate.com/resources/categories/assets.2?page=22', 'https://hub.virtamate.com/resources/categories/assets.2?page=23', 'https://hub.virtamate.com/resources/categories/assets.2?page=24', 'https://hub.virtamate.com/resources/categories/assets.2?page=25', 'https://hub.virtamate.com/resources/categories/assets.2?page=26', 'https://hub.virtamate.com/resources/categories/assets.2?page=27']
 
 	# для тестов берем только одну ссылку из списка пагинаций (один "кусок пирога"), любой
-	card = (logic.get_cards(pieces_of_cake[0]))
-	print('метод: get_cards, тип:', type(card), card)
-
-	#!!!устарел!!!
-	#print('метод: get_download_link, тип:', type(logic.get_download_link(card['url of content'])), logic.get_download_link(card['url of content']))
-
+	#card = (logic.get_cards(pages[0]))
+	#print('метод: get_cards, тип:', type(card), card)
+	#test_card = {'type of content': 'Assets', 'img link': 'https://1387905758.rsc.cdn77.org/data/resource_icons/8/8793.jpg', 'url of content': 'https://hub.virtamate.com/resources/campfire.8793', 'download content link': 'https://hub.virtamate.com/resources/campfire.8793/download', 'download depensies link': None, 'name': 'Campfire', 'about': 'Fireplace'}
 
 
 
 	# работа с базой
-	# создаем объект базы
-	#db = Database()
-	'''
+	#db = Database() #создаем объект базы
 	# создаем в базе таблицы с названиями категорий
+
+	big_list_of_cards = []
+	one_iteration_cards = [] #тут временно храним карточки одной итерации цикла
+	all_cards_in_one_category = [] #сюда суммируем все карточки всех циклов
+	pagination = []
 	for category, link in categories_dict.items():
 		#print(category, link)
-		#db.create_tables(category)
+		#db.create_tables(category)#создаем таблицы согласно категориям
 		#вставляем данные карточки в таблицу
-		pagination = logic.get_pagination_links(link)
-		print(pagination)
-		for piece_of_cake in pagination:
-			print(logic.get_cards(piece_of_cake))
-			sleep(1)
-	'''
+		pagination = logic.get_pagination_links(link)#получаем ссылки страниц каждой категории
+		#pagination = ['https://hub.virtamate.com/resources/categories/scenes.3?page=1', 'https://hub.virtamate.com/resources/categories/scenes.3?page=2'] #для теста
+		#print(pagination)
+		soup = logic.get_soup(link)
+		number = logic.get_pagination_number(soup)
+		print('В категории', category, number, 'страниц. Начинаем парсить категорию. Не переключайтесь...')
+
+		for page in pagination:#итерируемся по страницам отдельной категории, согласно пагинации
+			#print('logic.get_cards(page)',page)
+			#print('logic.get_cards(page)',logic.get_cards(page))
+			all_cards_in_one_category += logic.get_cards(page)
+
+		print(all_cards_in_one_category)
+
+
+
+			#print('Страница', i, 'из', number, 'готова')
+
+
+
+
+
+
+
+
+
+
+
+#{
+# 'type of content': 'Scenes',
+# 'img link': 'https://1387905758.rsc.cdn77.org/data/resource_icons/8/8656.jpg',
+# 'url of content': 'https://hub.virtamate.com/resources/lady_dimitrescu_gives_head_extendend.8656',
+# 'download content link': 'https://hub.virtamate.com/resources/lady_dimitrescu_gives_head_extendend.8656/download',
+# 'download dependencies link': 'https://hub.virtamate.com/resources/hip-venus.11441/version/14553/download?file=72106',
+# 'name': 'Lady_Dimitrescu_Gives_Head_Extendend',
+# 'about': 'Lady Dimitrescu holds you down and hops on you late at night.',
+# 'download depensies link': None}
 
 	# работа с файлами и папками
-	test_card = {'type of content': 'Assets', 'img link': 'https://1387905758.rsc.cdn77.org/data/resource_icons/8/8793.jpg', 'url of content': 'https://hub.virtamate.com/resources/campfire.8793', 'download link': 'https://hub.virtamate.com/resources/campfire.8793/download', 'name': 'Campfire', 'about:': 'Fireplace'}
+	#test_card = {'type of content': 'Assets', 'img link': 'https://1387905758.rsc.cdn77.org/data/resource_icons/8/8793.jpg', 'url of content': 'https://hub.virtamate.com/resources/poseable-anal-beads.13070/version/16551/download?file=82253', 'download content link': 'https://hub.virtamate.com/resources/campfire.8793/download', 'download depensies link': None, 'name': 'Campfire', 'about:': 'Fireplace'}
 	#download.download(test_card, logic.session, logic.headers, logic.cookies)
-	print('-------------')
 
 
 # вывод данных таблицы
@@ -283,3 +315,4 @@ if __name__ == '__main__':
 '''
 
 #card = {'type of content': 'Assets', 'img link': 'data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA', 'url of content': 'https://hub.virtamate.com/resources/heightmeasurethingy.219', 'download link': 'https://hub.virtamate.com/resources/heightmeasurethingy.219/download', 'name': 'HeightMeasureThingy', 'about:': 'This is a stick that can be use to measure things against'}
+
