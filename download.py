@@ -1,6 +1,6 @@
 import requests
 import os
-from logic import session, headers, cookies
+#from logic import session, headers, cookies
 
 
 # Метод создает\игнорирует\добавляет отсутствующие директории.
@@ -25,7 +25,7 @@ def mk_shortcut(shortcut: str):
 # 'download link': 'https://hub.virtamate.com/resources/genesis8character-wo-vam-de-tukautame-no-nihongo-guide-normal-ver-2.8692/download',
 # 'name': 'Genesis8Character wo VaM de tukautame no nihongo guide (normal ver.) 2'
 # описание}
-def download(card: dict):
+def download(card: dict, session, headers, cookies):
     directory = 'content/' + card.get('type of content')
     mk_dirs(directory)
 
@@ -41,7 +41,7 @@ def download(card: dict):
 
 
 #!!!устарел
-def download_old(img_url: str, content_url: str, filename: str, content_type: str):
+def download_old(img_url: str, content_url: str, filename: str, content_type: str, session, headers, cookies):
     directory = 'content/' + content_type
     mk_dirs(directory)
 
@@ -58,5 +58,6 @@ def download_old(img_url: str, content_url: str, filename: str, content_type: st
 
 if __name__ == '__main__':
     #{'type of content': 'Guides', 'img link': 'https://1387905758.rsc.cdn77.org/data/avatars/s/13/13301.jpg', 'url of content': 'https://hub.virtamate.com/resources/genesis8character-wo-vam-de-tukautame-no-nihongo-guide-normal-ver-2.8692', 'download link': 'https://hub.virtamate.com/resources/genesis8character-wo-vam-de-tukautame-no-nihongo-guide-normal-ver-2.8692/download', 'name': 'Genesis8Character wo VaM de tukautame no nihongo guide (normal ver.) 2'}
-    download({'type of content': 'Guides', 'img link': 'https://1387905758.rsc.cdn77.org/data/avatars/s/13/13301.jpg', 'url of content': 'https://hub.virtamate.com/resources/genesis8character-wo-vam-de-tukautame-no-nihongo-guide-normal-ver-2.8692', 'download link': 'https://hub.virtamate.com/resources/genesis8character-wo-vam-de-tukautame-no-nihongo-guide-normal-ver-2.8692/download', 'name': 'Genesis8Character wo VaM de tukautame no nihongo guide (normal ver.) 2'})
-
+    #download({'type of content': 'Guides', 'img link': 'https://1387905758.rsc.cdn77.org/data/avatars/s/13/13301.jpg', 'url of content': 'https://hub.virtamate.com/resources/genesis8character-wo-vam-de-tukautame-no-nihongo-guide-normal-ver-2.8692', 'download link': 'https://hub.virtamate.com/resources/genesis8character-wo-vam-de-tukautame-no-nihongo-guide-normal-ver-2.8692/download', 'name': 'Genesis8Character wo VaM de tukautame no nihongo guide (normal ver.) 2'})
+    test_card = {'type of content': 'Assets', 'img link': 'https://1387905758.rsc.cdn77.org/data/resource_icons/8/8793.jpg', 'url of content': 'https://hub.virtamate.com/resources/campfire.8793', 'download link': 'https://hub.virtamate.com/resources/campfire.8793/download', 'name': 'Campfire', 'about:': 'Fireplace'}
+    download(test_card)

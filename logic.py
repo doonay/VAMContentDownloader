@@ -25,6 +25,7 @@
 import requests
 from bs4 import BeautifulSoup as bs
 from db import Database
+import download
 from time import sleep
 import lxml
 
@@ -36,6 +37,9 @@ class Logic():
 	def __init__(self, base_url='https://hub.virtamate.com', url='https://hub.virtamate.com/resources/categories/free.4/?page=1'):
 		self.base_url = base_url
 		self.url = url
+		self.session = session
+		self.headers = headers
+		self.cookies = cookies
 
 	# создаем запрос
 	# на вход получаем ссылку (str), возвращаем его soup
@@ -188,10 +192,10 @@ if __name__ == '__main__':
 
 
 
-
+	# работа с базой
 	# создаем объект базы
-	db = Database()
-'''
+	#db = Database()
+	'''
 	# создаем в базе таблицы с названиями категорий
 	for category, link in categories_dict.items():
 		#print(category, link)
@@ -202,7 +206,11 @@ if __name__ == '__main__':
 		for piece_of_cake in pagination:
 			print(logic.get_cards(piece_of_cake))
 			sleep(1)
-'''
+	'''
+
+	# работа с файлами и папками
+	test_card = {'type of content': 'Assets', 'img link': 'https://1387905758.rsc.cdn77.org/data/resource_icons/8/8793.jpg', 'url of content': 'https://hub.virtamate.com/resources/campfire.8793', 'download link': 'https://hub.virtamate.com/resources/campfire.8793/download', 'name': 'Campfire', 'about:': 'Fireplace'}
+	download.download(test_card, logic.session, logic.headers, logic.cookies)
 
 # вывод данных таблицы
 # db.get_data('Assets')
