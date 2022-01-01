@@ -111,16 +111,19 @@ class Logic():
 			url_of_content = self.base_url + card.find('a', {'class': ""}).get('href')
 			final_card['url of content'] = url_of_content[0:-1]
 
+
 			#download links
 			#Усовершенствовал механизм получения ссылок. !!!В связи с этим в карточку добавился новый эллемент - ссылка на файл зависимостей
 			id = self.get_soup(url_of_content[0:-1])
 			# <a href="/resources/the-clinic.12377/download" class="button--cta button button--icon button--icon--download" data-xf-click="overlay"><span class="button-text">Download</span></a>
 			general_download_page = id.find('a', {'class': 'button--cta', 'data-xf-click': 'overlay'})
 			# <a class ="button--cta button button--icon button--icon--download" data-xf-click="overlay" href="/resources/chinese-dragon-bridge.13191/download"><span class ="button-text">Download</span></a>
+			'''
 			if general_download_page == None:
 				print('без зависимости')
 				download_page = id.find('a', {'class': 'button--cta'}).get('href')
-				print(self.base_url + download_page)
+				final_card['download content link'] = self.base_url + download_page
+				final_card['download depensies link'] = None
 			else:
 				#супировать страницу закачки и парсить отдельную ссылку на файл зависимости
 				print('есть зависимости')
@@ -133,11 +136,33 @@ class Logic():
 					#print(str(link.get('href')).find('/resources/'))
 					if str(link.get('href')).find('/resources/') == 0:
 						print(self.base_url + str(link.get('href')))
+				#final_card['download content link'] = self.base_url + download_page
+				#final_card['download depensies link'] = None
+			'''
+
+			try:
+				download_page = self.base_url + str(general_download_page.get('href'))
+				download_page_soup = self.get_soup(download_page)
+				links_arr = download_page_soup.find_all('a', class_='button')
+				final_links_arr = []
+				for link in links_arr:
+					if str(link.get('href')).find('/resources/') == 0:
+						final_links_arr.append(str(link.get('href')))
+
+				final_card['download content link'] = self.base_url + final_links_arr[0]
+				final_card['download depensies link'] = self.base_url + final_links_arr[1]
+			except:
+				print('без зависимости')
+				download_page = id.find('a', {'class': 'button--cta'}).get('href')
+				final_card['download content link'] = self.base_url + download_page
+				final_card['download depensies link'] = None
+
+			print(final_card.get('download content link'))
+			print(final_card.get('download depensies link'))
 
 
 				#print('кортеж из двух ссылок (контент и файл зависимости):', download_page.find_all('a', class_='button'))
 			#general_download_page_soup = self.get_soup(general_download_page)
-			print('-------------')
 
 			#!!!Устарело!!! т.к. добавил более четкую ссылку на скачивание + если есть файл зависимости, скачиваем и его
 			#download link
