@@ -30,5 +30,6 @@ for category in categories:
 
     for page in pagination_links:
         card = (logic.get_cards(page))
-        print('Start downloading', card.get['name'])
+        print(card)
+        print('Start downloading', card.get('name'))
         download.download(card, logic.session, logic.headers, logic.cookies)
