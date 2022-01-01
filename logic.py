@@ -91,6 +91,7 @@ class Logic():
 		#print(soup)
 		cards = soup.find_all('div', class_="structItem")
 		final_card = {}
+
 		for card in cards:
 			try:
 				#type of content
@@ -110,15 +111,44 @@ class Logic():
 			url_of_content = self.base_url + card.find('a', {'class': ""}).get('href')
 			final_card['url of content'] = url_of_content[0:-1]
 
+			#download links
+			#Усовершенствовал механизм получения ссылок. !!!В связи с этим в карточку добавился новый эллемент - ссылка на файл зависимостей
+			id = self.get_soup(url_of_content[0:-1])
+			# <a href="/resources/the-clinic.12377/download" class="button--cta button button--icon button--icon--download" data-xf-click="overlay"><span class="button-text">Download</span></a>
+			general_download_page = id.find('a', {'class': 'button--cta', 'data-xf-click': 'overlay'})
+			# <a class ="button--cta button button--icon button--icon--download" data-xf-click="overlay" href="/resources/chinese-dragon-bridge.13191/download"><span class ="button-text">Download</span></a>
+			if general_download_page == None:
+				print('без зависимости')
+				download_page = id.find('a', {'class': 'button--cta'}).get('href')
+				print(self.base_url + download_page)
+			else:
+				#супировать страницу закачки и парсить отдельную ссылку на файл зависимости
+				print('есть зависимости')
+				download_page = self.base_url + str(general_download_page.get('href'))
+				download_page_soup = self.get_soup(download_page)
+				# <a href="/resources/poseable-anal-beads.13070/version/16551/download?file=82253" class="button button--icon button--icon--download"><span class="button-text">Download</span></a>
+				# <a href="/resources/poseable-anal-beads.13070/version/16551/download?file=82254" class="button button--icon button--icon--download"><span class="button-text">Download</span></a>
+				links_arr = download_page_soup.find_all('a', class_='button')
+				for link in links_arr:
+					#print(str(link.get('href')).find('/resources/'))
+					if str(link.get('href')).find('/resources/') == 0:
+						print(self.base_url + str(link.get('href')))
+
+
+				#print('кортеж из двух ссылок (контент и файл зависимости):', download_page.find_all('a', class_='button'))
+			#general_download_page_soup = self.get_soup(general_download_page)
+			print('-------------')
+
+			#!!!Устарело!!! т.к. добавил более четкую ссылку на скачивание + если есть файл зависимости, скачиваем и его
 			#download link
 			#print('download link:', base_url + get_download_link(url_of_content))
-			final_card['download link'] = url_of_content + 'download'
+			#final_card['download link'] = url_of_content + 'download'
 
 			#name
 			final_card['name'] = card.find('a', {'class': ""}).text
 
 			#about
-			final_card['about:'] = card.find('div', class_="structItem-resourceTagLine").text
+			final_card['about'] = card.find('div', class_="structItem-resourceTagLine").text
 
 		return final_card
 	#print(get_cards('https://hub.virtamate.com/resources/categories/plugins.12/?page=1'))
@@ -210,7 +240,9 @@ if __name__ == '__main__':
 
 	# работа с файлами и папками
 	test_card = {'type of content': 'Assets', 'img link': 'https://1387905758.rsc.cdn77.org/data/resource_icons/8/8793.jpg', 'url of content': 'https://hub.virtamate.com/resources/campfire.8793', 'download link': 'https://hub.virtamate.com/resources/campfire.8793/download', 'name': 'Campfire', 'about:': 'Fireplace'}
-	download.download(test_card, logic.session, logic.headers, logic.cookies)
+	#download.download(test_card, logic.session, logic.headers, logic.cookies)
+	print('-------------')
+
 
 # вывод данных таблицы
 # db.get_data('Assets')

@@ -1,6 +1,7 @@
 import requests
 import os
 #from logic import session, headers, cookies
+import re
 
 
 # Метод создает\игнорирует\добавляет отсутствующие директории.
@@ -12,7 +13,7 @@ def mk_dirs(directory: str):
         print('Директория content создана')
 
     if os.path.exists(directory):
-        print('Директория', directory, 'существует')
+        pass
     else:
         os.mkdir(directory)
         print('Директория', directory, 'создана')
@@ -31,12 +32,13 @@ def download(card: dict, session, headers, cookies):
 
     r = session.get(card.get('img link'), headers=headers, cookies=cookies)
 
-    with open(directory + '/' + card.get('name') + '.jpg', "wb") as code:
+    name = re.sub(r'[\\/*?:"<>|]', '', card.get('name')) #читстим будущее имя файла от запрещенных символов
+    with open(directory + '/' + name + '.jpg', "wb") as code:
         code.write(r.content)
 
     r = session.get(card.get('url of content'), headers=headers, cookies=cookies)
 
-    with open(directory + '/' + card.get('name') + '.var', "wb") as code:
+    with open(directory + '/' + name + '.var', "wb") as code:
         code.write(r.content)
 
 

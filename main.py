@@ -33,3 +33,4 @@ for category in categories:
         print(card)
         print('Start downloading', card.get('name'))
         download.download(card, logic.session, logic.headers, logic.cookies)
+        print()
